@@ -89,6 +89,9 @@
     <ClInclude Include="TileComponent.h">
       <Filter>Zaidimas\ECS</Filter>
     </ClInclude>
+    <ClInclude Include="Animation.h">
+      <Filter>Zaidimas\ECS</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="2D_Zaidimas.rc">
