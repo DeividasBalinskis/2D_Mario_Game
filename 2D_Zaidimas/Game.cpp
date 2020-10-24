@@ -11,18 +11,11 @@ Manager manager;
 SDL_Renderer* Game::renderer = nullptr;
 SDL_Event Game::event;
 
-std::vector<ColliderComponent*> Game::colliders;
+SDL_Rect Game::camera = {0,0,800,640};
+
+bool Game::isRunning = false;
 
 auto& player(manager.addEntity());
-auto& wall(manager.addEntity());
-
-enum groupLabels : std::size_t
-{
-	groupMap,
-	groupPlayers,
-	groupEnemies,
-	groupColliders
-};
 
 Game::Game()
 {}
@@ -53,23 +46,23 @@ void Game::init(const char* title, int xpos, int ypos, int width, int height, bo
 		isRunning = false;
 	}
 
-	map = new Map();
+	map = new Map("assets/terrain_ss.png", 3, 32);
 
 	//ECS implementation
 
-	Map::LoadMap("assets/p16x16.map", 16, 16);
+	map->LoadMap("assets/map.map", 25, 20);
 
-	player.addComponent<TransformComponent>(2);
+	player.addComponent<TransformComponent>(4);
 	player.addComponent<SpriteComponent>("assets/player_anims.png", true);
 	player.addComponent<KeyboardController>();
 	player.addComponent<ColliderComponent>("player");
 	player.addGroup(groupPlayers);
 
-	wall.addComponent<TransformComponent>(300.0f, 300.0f, 300, 20, 1);
-	wall.addComponent<SpriteComponent>("assets/dirt.png");
-	wall.addComponent<ColliderComponent>("wall");
-	wall.addGroup(groupMap);
 }
+
+auto& tiles(manager.getGroup(Game::groupMap));
+auto& players(manager.getGroup(Game::groupPlayers));
+auto& colliders(manager.getGroup(Game::groupColliders));
 
 void Game::handleEvents()
 {
@@ -86,35 +79,50 @@ void Game::handleEvents()
 
 void Game::update()
 {
+	SDL_Rect playerCol = player.getComponent<ColliderComponent>().collider;
+	Vector2D playerPos = player.getComponent<TransformComponent>().position;
+
 	manager.refresh();
 	manager.update();
 
-	for (auto cc : colliders)
+	for (auto& c : colliders)
 	{
-		Collision::AABB(player.getComponent<ColliderComponent>(), *cc);
+		SDL_Rect cCol = c->getComponent<ColliderComponent>().collider;
+		if (Collision::AABB(cCol, playerCol))
+		{
+			player.getComponent<TransformComponent>().position = playerPos;
+		}
 	}
-}
 
-auto& tiles(manager.getGroup(groupMap));
-auto& players(manager.getGroup(groupPlayers));
-auto& enemies(manager.getGroup(groupEnemies));
+	camera.x = player.getComponent<TransformComponent>().position.x -400;
+	camera.y = player.getComponent<TransformComponent>().position.y - 320;
+
+	if (camera.x < 0)
+		camera.x = 0;
+	if (camera.y < 0)
+		camera.y = 0;
+	if (camera.x > camera.w)
+		camera.x = camera.w;
+	if (camera.y > camera.h)
+		camera.y = camera.h;
+}
 
 void Game::render()
 {
 	SDL_RenderClear(renderer);
-	for (auto* t : tiles)
+	for (auto& t : tiles)
 	{
 		t->draw();
 	}
 
-	for (auto* p : players)
+	/*for (auto& c : colliders)
+	{
+		c->draw();
+	}*/
+
+	for (auto& p : players)
 	{
 		p->draw();
-	}
-
-	for (auto* e : enemies)
-	{
-		e->draw();
 	}
 
 	SDL_RenderPresent(renderer);
@@ -127,9 +135,3 @@ void Game::clean()
 	SDL_Quit();
 }
 
-void Game::AddTile(int id, int x, int y)
-{
-	auto& tile(manager.addEntity());
-	tile.addComponent<TileComponent>(x, y, 32, 32, id);
-	tile.addGroup(groupMap);
-}
